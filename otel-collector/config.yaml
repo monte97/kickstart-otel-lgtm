@@ -15,7 +15,7 @@ receivers:
   docker_stats:
     endpoint: unix:///var/run/docker.sock
     collection_interval: 15s
-    timeout: 20s
+    timeout: 10s
 
   # Self-monitoring: scrape delle metriche interne del collector
   prometheus/self:
@@ -51,7 +51,7 @@ exporters:
 
   # Trace → Tempo
   otlp/tempo:
-    endpoint: tempo:4317
+    endpoint: grpc://tempo:4317
     tls:
       insecure: true
 
@@ -91,7 +91,7 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, resourcedetection, batch]
-      exporters: [otlp/tempo]
+      exporters: [otlp/tempo, debug]
 
     metrics:
       receivers: [otlp]
