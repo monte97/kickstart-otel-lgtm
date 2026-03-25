@@ -1,0 +1,215 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: observability-baseline
+    folder: Observability
+    interval: 1m
+    rules:
+
+      - uid: high-error-rate
+        title: High Error Rate
+        condition: C
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: mimir
+            model:
+              expr: >
+                sum(rate(traces_spanmetrics_calls_total{span_kind="SPAN_KIND_SERVER", status_code="STATUS_CODE_ERROR"}[5m]))
+                /
+                sum(rate(traces_spanmetrics_calls_total{span_kind="SPAN_KIND_SERVER"}[5m]))
+              refId: A
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [0.05]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                  type: query
+              refId: C
+              type: classic_conditions
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "Error rate above 5% for 5 minutes"
+          description: "Error rate is {{ humanizePercentage $values.A.Value }}. Investigate traces in Grafana."
+        labels:
+          severity: critical
+
+      - uid: high-latency-p99
+        title: High Latency (p99)
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: mimir
+            model:
+              expr: >
+                histogram_quantile(0.99,
+                  sum(rate(traces_spanmetrics_duration_milliseconds_bucket{span_kind="SPAN_KIND_SERVER"}[5m])) by (le)
+                )
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [2000]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                  type: query
+              refId: C
+              type: classic_conditions
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "p99 latency above 2000ms for 5 minutes"
+          description: "p99 latency is {{ $values.A.Value | humanizeDuration }}ms"
+        labels:
+          severity: warning
+
+      - uid: service-down
+        title: Service Down
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: mimir
+            model:
+              expr: sum(rate(traces_spanmetrics_calls_total{span_kind="SPAN_KIND_SERVER"}[5m]))
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [0.001]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                  type: query
+              refId: C
+              type: classic_conditions
+        noDataState: Alerting
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "No spans received for 5 minutes — service may be down"
+        labels:
+          severity: critical
+
+      - uid: collector-dropping
+        title: Collector Dropping Spans
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 120
+              to: 0
+            datasourceUid: mimir
+            model:
+              expr: sum(rate(otelcol_processor_dropped_spans_total[2m]))
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                  type: query
+              refId: C
+              type: classic_conditions
+        noDataState: NoData
+        execErrState: Error
+        for: 2m
+        annotations:
+          summary: "OTel Collector is dropping spans (memory_limiter triggered)"
+          description: "Increase limit_mib in otel-collector/config.yaml (currently 512 MiB) or reduce ingestion rate"
+        labels:
+          severity: warning
+
+      - uid: collector-queue-full
+        title: Collector Queue High
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 120
+              to: 0
+            datasourceUid: mimir
+            model:
+              expr: >
+                otelcol_exporter_queue_size / otelcol_exporter_queue_capacity
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [0.8]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                  type: query
+              refId: C
+              type: classic_conditions
+        noDataState: NoData
+        execErrState: Error
+        for: 2m
+        annotations:
+          summary: "Exporter queue at {{ humanizePercentage $values.A.Value }} capacity"
+        labels:
+          severity: warning
