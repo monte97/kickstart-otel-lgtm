@@ -1,0 +1,94 @@
+name: kickstart-otel-lgtm
+
+networks:
+  observability:
+    driver: bridge
+
+volumes:
+  grafana-data:
+
+services:
+  # ─── OpenTelemetry Collector ────────────────────────────────────────────────
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.120.0
+    container_name: otel-collector
+    restart: unless-stopped
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./otel-collector/config.yaml:/etc/otel/config.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # per docker_stats receiver
+    ports:
+      - "4317:4317"   # OTLP gRPC (collega le tue app qui)
+      - "4318:4318"   # OTLP HTTP (collega le tue app qui)
+      - "13133:13133" # health check
+      - "55679:55679" # zPages (debug)
+    networks:
+      - observability
+    depends_on:
+      - loki
+      - tempo
+      - mimir
+
+  # ─── Grafana ────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11
+    container_name: grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-admin}
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor metricsSummary
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - observability
+    depends_on:
+      - loki
+      - tempo
+      - mimir
+
+  # ─── Loki ───────────────────────────────────────────────────────────────────
+  loki:
+    image: grafana/loki:3
+    container_name: loki
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/config.yaml"]
+    volumes:
+      - ./loki/config.yaml:/etc/loki/config.yaml:ro
+    ports:
+      - "3100:3100"
+    networks:
+      - observability
+
+  # ─── Tempo ──────────────────────────────────────────────────────────────────
+  tempo:
+    image: grafana/tempo:3
+    container_name: tempo
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo/config.yaml"]
+    volumes:
+      - ./tempo/config.yaml:/etc/tempo/config.yaml:ro
+    ports:
+      - "3200:3200"   # Tempo query API (Grafana usa questa)
+      # 4317 OTLP gRPC ingest è interno alla rete, non esposto all'host
+    networks:
+      - observability
+
+  # ─── Mimir ──────────────────────────────────────────────────────────────────
+  mimir:
+    image: grafana/mimir:2
+    container_name: mimir
+    restart: unless-stopped
+    command: ["--config.file=/etc/mimir/config.yaml"]
+    volumes:
+      - ./mimir/config.yaml:/etc/mimir/config.yaml:ro
+    ports:
+      - "9009:9009"
+    networks:
+      - observability
