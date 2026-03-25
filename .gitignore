@@ -1,0 +1,8 @@
+# Local env overrides
+.env
+
+# Docker volumes data
+data/
+
+# OS
+.DS_Store
