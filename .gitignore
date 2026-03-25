@@ -4,5 +4,8 @@
 # Docker volumes data
 data/
 
+# Docker local overrides (never commit)
+docker-compose.override.yml
+
 # OS
 .DS_Store
