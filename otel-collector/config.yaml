@@ -51,7 +51,7 @@ exporters:
 
   # Trace → Tempo
   otlp/tempo:
-    endpoint: grpc://tempo:4317
+    endpoint: tempo:4317
     tls:
       insecure: true
 

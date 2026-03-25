@@ -14,6 +14,7 @@ services:
     container_name: otel-collector
     restart: unless-stopped
     command: ["--config=/etc/otel/config.yaml"]
+    user: "0:0"  # root — needed to read /var/run/docker.sock for docker_stats receiver
     volumes:
       - ./otel-collector/config.yaml:/etc/otel/config.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro  # per docker_stats receiver
@@ -31,7 +32,7 @@ services:
 
   # ─── Grafana ────────────────────────────────────────────────────────────────
   grafana:
-    image: grafana/grafana:11
+    image: grafana/grafana:11.6.0
     container_name: grafana
     restart: unless-stopped
     environment:
@@ -55,7 +56,7 @@ services:
 
   # ─── Loki ───────────────────────────────────────────────────────────────────
   loki:
-    image: grafana/loki:3
+    image: grafana/loki:3.3.2
     container_name: loki
     restart: unless-stopped
     command: ["-config.file=/etc/loki/config.yaml"]
@@ -68,7 +69,7 @@ services:
 
   # ─── Tempo ──────────────────────────────────────────────────────────────────
   tempo:
-    image: grafana/tempo:3
+    image: grafana/tempo:2.6.1
     container_name: tempo
     restart: unless-stopped
     command: ["-config.file=/etc/tempo/config.yaml"]
@@ -82,7 +83,7 @@ services:
 
   # ─── Mimir ──────────────────────────────────────────────────────────────────
   mimir:
-    image: grafana/mimir:2
+    image: grafana/mimir:2.14.0
     container_name: mimir
     restart: unless-stopped
     command: ["--config.file=/etc/mimir/config.yaml"]
