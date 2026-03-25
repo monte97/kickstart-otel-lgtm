@@ -91,7 +91,7 @@ groups:
         for: 5m
         annotations:
           summary: "p99 latency above 2000ms for 5 minutes"
-          description: "p99 latency is {{ $values.A.Value | humanizeDuration }}ms"
+          description: "p99 latency is {{ printf \"%.0f\" $values.A.Value }}ms"
         labels:
           severity: warning
 
