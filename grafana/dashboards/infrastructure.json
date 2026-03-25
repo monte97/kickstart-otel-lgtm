@@ -26,7 +26,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "mimir" },
-          "expr": "rate(container_cpu_usage_total{container_name=~\"$container\"}[$__rate_interval]) / 1e9",
+          "expr": "rate(container_cpu_usage_nanoseconds_total{container_name=~\"$container\"}[$__rate_interval]) / 1e9",
           "legendFormat": "{{container_name}}"
         }
       ],
@@ -51,7 +51,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "mimir" },
-          "expr": "container_memory_usage_total{container_name=~\"$container\"}",
+          "expr": "container_memory_usage_total_bytes{container_name=~\"$container\"}",
           "legendFormat": "{{container_name}}"
         }
       ],
@@ -76,7 +76,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "mimir" },
-          "expr": "rate(container_network_io_usage_rx_bytes{container_name=~\"$container\"}[$__rate_interval])",
+          "expr": "rate(container_network_io_usage_rx_bytes_total{container_name=~\"$container\"}[$__rate_interval])",
           "legendFormat": "RX {{container_name}}"
         }
       ],
@@ -101,7 +101,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "mimir" },
-          "expr": "rate(container_network_io_usage_tx_bytes{container_name=~\"$container\"}[$__rate_interval])",
+          "expr": "rate(container_network_io_usage_tx_bytes_total{container_name=~\"$container\"}[$__rate_interval])",
           "legendFormat": "TX {{container_name}}"
         }
       ],
@@ -117,7 +117,7 @@
       {
         "current": {},
         "datasource": { "type": "prometheus", "uid": "mimir" },
-        "definition": "label_values(container_memory_usage_total, container_name)",
+        "definition": "label_values(container_memory_usage_total_bytes, container_name)",
         "hide": 0,
         "includeAll": true,
         "allValue": ".*",
@@ -126,7 +126,7 @@
         "name": "container",
         "options": [],
         "query": {
-          "query": "label_values(container_memory_usage_total, container_name)",
+          "query": "label_values(container_memory_usage_total_bytes, container_name)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
