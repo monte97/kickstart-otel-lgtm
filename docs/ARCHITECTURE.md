@@ -17,11 +17,11 @@ Your App
 
 | Component | Image | Role | Ports |
 |-----------|-------|------|-------|
-| **OTel Collector** | `otel/opentelemetry-collector-contrib:0.120.0` | Receives OTLP telemetry, routes to backends | `4317` (gRPC), `4318` (HTTP) |
-| **Grafana** | `grafana/grafana:11.6.0` | Visualization, dashboards, alerting | `3000` |
-| **Loki** | `grafana/loki:3.3.2` | Log storage and querying | `3100` |
-| **Tempo** | `grafana/tempo:2.6.1` | Trace storage (also generates RED metrics via span-metrics) | `3200` |
-| **Mimir** | `grafana/mimir:2.14.0` | Metrics storage (Prometheus-compatible remote write) | `9009` |
+| **OTel Collector** | `otel/opentelemetry-collector-contrib:0.149.0` | Receives OTLP telemetry, routes to backends | `4317` (gRPC), `4318` (HTTP) |
+| **Grafana** | `grafana/grafana:12.4.2` | Visualization, dashboards, alerting | `3000` |
+| **Loki** | `grafana/loki:3.7.1` | Log storage and querying | `3100` |
+| **Tempo** | `grafana/tempo:2.10.4` | Trace storage (also generates RED metrics via span-metrics) | `3200` |
+| **Mimir** | `grafana/mimir:3.0.5` | Metrics storage (Prometheus-compatible remote write) | `9009` |
 
 ## Why Mimir instead of Prometheus
 

@@ -10,7 +10,7 @@ volumes:
 services:
   # ─── OpenTelemetry Collector ────────────────────────────────────────────────
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.120.0
+    image: otel/opentelemetry-collector-contrib:0.149.0
     container_name: otel-collector
     restart: unless-stopped
     command: ["--config=/etc/otel/config.yaml"]
@@ -32,7 +32,7 @@ services:
 
   # ─── Grafana ────────────────────────────────────────────────────────────────
   grafana:
-    image: grafana/grafana:11.6.0
+    image: grafana/grafana:12.4.2
     container_name: grafana
     restart: unless-stopped
     environment:
@@ -56,7 +56,7 @@ services:
 
   # ─── Loki ───────────────────────────────────────────────────────────────────
   loki:
-    image: grafana/loki:3.3.2
+    image: grafana/loki:3.7.1
     container_name: loki
     restart: unless-stopped
     command: ["-config.file=/etc/loki/config.yaml"]
@@ -69,7 +69,7 @@ services:
 
   # ─── Tempo ──────────────────────────────────────────────────────────────────
   tempo:
-    image: grafana/tempo:2.6.1
+    image: grafana/tempo:2.10.4
     container_name: tempo
     restart: unless-stopped
     command: ["-config.file=/etc/tempo/config.yaml"]
@@ -83,7 +83,7 @@ services:
 
   # ─── Mimir ──────────────────────────────────────────────────────────────────
   mimir:
-    image: grafana/mimir:2.14.0
+    image: grafana/mimir:3.0.5
     container_name: mimir
     restart: unless-stopped
     command: ["--config.file=/etc/mimir/config.yaml"]

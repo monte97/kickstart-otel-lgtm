@@ -44,13 +44,13 @@ processors:
 
 exporters:
   # Log → Loki (richiede Loki 3.x per endpoint /otlp)
-  otlphttp/loki:
+  otlp_http/loki:
     endpoint: http://loki:3100/otlp
     tls:
       insecure: true
 
   # Trace → Tempo
-  otlp/tempo:
+  otlp_grpc/tempo:
     endpoint: tempo:4317
     tls:
       insecure: true
@@ -85,13 +85,12 @@ service:
       level: warn
     metrics:
       level: detailed
-      address: 0.0.0.0:8888
 
   pipelines:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, resourcedetection, batch]
-      exporters: [otlp/tempo, debug]
+      exporters: [otlp_grpc/tempo, debug]
 
     metrics:
       receivers: [otlp]
@@ -101,7 +100,7 @@ service:
     logs:
       receivers: [otlp]
       processors: [memory_limiter, resourcedetection, batch]
-      exporters: [otlphttp/loki]
+      exporters: [otlp_http/loki]
 
     metrics/infra:
       receivers: [docker_stats, prometheus/self]

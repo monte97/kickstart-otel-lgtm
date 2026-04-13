@@ -76,6 +76,7 @@ Pre-configured:
 
 - [Architecture](docs/ARCHITECTURE.md) — data flow, components, Mimir vs Prometheus
 - [Instrumentation](docs/INSTRUMENTATION.md) — connect your app
+- [Customization](docs/CUSTOMIZATION.md) — ports, retention, auth, pipelines
 - [Alerting](docs/ALERTING.md) — customize alert rules
 - [Troubleshooting](docs/TROUBLESHOOTING.md) — common issues
 

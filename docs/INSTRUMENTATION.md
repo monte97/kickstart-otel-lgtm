@@ -115,6 +115,40 @@ node -r ./tracing.js app.js
 
 ---
 
+## Collector Chaining (agent → gateway)
+
+If your project already has its own OTel Collector handling pre-filtering, enrichment, or routing, you don't need to instrument your app directly against this stack. Point the intermediate collector here as an OTLP exporter:
+
+```yaml
+# Your project's collector config
+exporters:
+  otlp:
+    endpoint: http://<kickstart-host>:4317
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [...]
+      processors: [...]
+      exporters: [otlp]
+    metrics:
+      receivers: [...]
+      processors: [...]
+      exporters: [otlp]
+    logs:
+      receivers: [...]
+      processors: [...]
+      exporters: [otlp]
+```
+
+Use port `4317` for gRPC or `4318` for HTTP.
+
+> **Note on resource attributes:** the collector in this stack runs a `resourcedetection` processor with `override: false`. If your intermediate collector already adds `host.name`, `os.type`, and similar attributes, they are preserved as-is. No duplicates.
+
+---
+
 ## Advanced Example: MockMart
 
 [MockMart](https://github.com/monte97/MockMart) is a fully instrumented Node.js e-commerce microservices app. It includes:
