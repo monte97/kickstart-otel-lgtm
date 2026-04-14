@@ -149,6 +149,66 @@
       "options": {"footer": {"show": false}},
       "transformations": [{"id": "labelsToFields", "options": {"mode": "columns"}}, {"id": "organize", "options": {"excludeByName": {"Time": true, "Value": true, "__name__": true, "alertstate": true}}}],
       "targets": [{"refId": "A", "datasource": {"type": "prometheus", "uid": "mimir"}, "expr": "ALERTS{alertstate=\"pending\"}", "format": "table", "instant": true, "legendFormat": ""}]
+    },
+
+    {
+      "id": 30, "type": "row", "title": "Alert History", "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 25}
+    },
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "Alert Firings Over Time",
+      "description": "Number of alert state-change events per 5m bucket, by alert name. Requires Grafana Unified Alerting → Loki state history backend (GF_UNIFIED_ALERTING_STATE_HISTORY_BACKEND=loki).",
+      "datasource": {"type": "loki", "uid": "loki"},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 26},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"lineWidth": 2, "fillOpacity": 10, "gradientMode": "none", "drawStyle": "bars"},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {"mode": "multi", "sort": "desc"},
+        "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["sum"]}
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {"type": "loki", "uid": "loki"},
+          "expr": "sum by (alertname) (count_over_time({grafana_folder=\"Observability\"} | json | current_state = \"Alerting\" [5m]))",
+          "legendFormat": "{{alertname}}",
+          "queryType": "range"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "type": "logs",
+      "title": "Recent Alert State Changes",
+      "description": "All alert state transitions (Normal ↔ Alerting ↔ Pending) written by Grafana Unified Alerting to Loki.",
+      "datasource": {"type": "loki", "uid": "loki"},
+      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 34},
+      "options": {
+        "dedupStrategy": "none",
+        "showLabels": false,
+        "showCommonLabels": false,
+        "showTime": true,
+        "wrapLogMessage": false,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {"type": "loki", "uid": "loki"},
+          "expr": "{grafana_folder=\"Observability\"} | json | line_format \"[{{.current_state}}] {{.ruleTitle}} (was: {{.previous_state}})\"",
+          "queryType": "range"
+        }
+      ]
     }
   ]
 }
