@@ -64,7 +64,7 @@ groups:
             model:
               expr: >
                 histogram_quantile(0.99,
-                  sum(rate(traces_spanmetrics_duration_milliseconds_bucket{span_kind="SPAN_KIND_SERVER"}[5m])) by (le)
+                  sum(rate(traces_spanmetrics_latency_bucket{span_kind="SPAN_KIND_SERVER"}[5m])) by (le)
                 )
               refId: A
           - refId: C
@@ -75,7 +75,7 @@ groups:
             model:
               conditions:
                 - evaluator:
-                    params: [2000]
+                    params: [2]
                     type: gt
                   operator:
                     type: and
@@ -90,8 +90,8 @@ groups:
         execErrState: Error
         for: 5m
         annotations:
-          summary: "p99 latency above 2000ms for 5 minutes"
-          description: "p99 latency is {{ printf \"%.0f\" $values.A.Value }}ms"
+          summary: "p99 latency above 2s for 5 minutes"
+          description: "p99 latency is {{ printf \"%.3f\" $values.A.Value }}s"
         labels:
           severity: warning
 

@@ -43,8 +43,10 @@ services:
       - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor metricsSummary
     volumes:
       - grafana-data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./grafana-dashboards/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana-dashboards/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana-dashboards/provisioning/alerting:/etc/grafana/provisioning/alerting:ro
+      - ./grafana-dashboards/dashboards:/var/lib/grafana/dashboards:ro
     ports:
       - "3000:3000"
     networks:
