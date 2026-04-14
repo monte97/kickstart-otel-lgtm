@@ -1,6 +1,6 @@
 # Grafana: Dashboards and Navigation
 
-This guide explains how to navigate Grafana, understand the three pre-configured dashboards, and use Explore for ad-hoc queries.
+This guide explains how to navigate Grafana, understand the pre-configured dashboards, and use Explore for ad-hoc queries.
 
 ## Access
 
@@ -16,11 +16,11 @@ Grafana loads directly to the home page with the available dashboards.
 
 ## Pre-loaded Dashboards
 
-The stack includes three dashboards already configured and accessible from the Grafana home.
+The stack includes eight dashboards already configured and accessible from the Grafana home.
 
 To open a dashboard: click **Dashboards** in the left sidebar, then select the name from the list.
 
-<img src="images/grafana-dashboards-list.webp" alt="List of the three pre-loaded dashboards in Grafana" width="80%">
+<img src="images/grafana-dashboards-list.webp" alt="List of the pre-loaded dashboards in Grafana" width="80%">
 
 ### 1. Service Overview
 
