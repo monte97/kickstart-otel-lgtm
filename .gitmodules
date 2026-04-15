@@ -1,3 +1,4 @@
 [submodule "grafana-dashboards"]
 	path = grafana-dashboards
 	url = https://github.com/monte97/grafana-lgtm-dashboards.git
+	branch = master

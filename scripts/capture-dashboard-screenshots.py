@@ -3,7 +3,7 @@
 capture-dashboard-screenshots.py
 
 Captures 1920x1080 WebP screenshots of all Grafana dashboards and saves them
-to docs/dashboards/images/. Run after a k6 load test so panels have data.
+to grafana-dashboards/docs/images/. Run after a k6 load test so panels have data.
 
 Usage:
     python3 scripts/capture-dashboard-screenshots.py [--time-range 30m]
@@ -26,7 +26,7 @@ GRAFANA_URL = "http://localhost:3000"
 USERNAME    = "admin"
 PASSWORD    = "admin"
 VIEWPORT    = {"width": 1920, "height": 1080}
-OUTPUT_DIR  = Path(__file__).parent.parent / "docs" / "dashboards" / "images"
+OUTPUT_DIR  = Path(__file__).parent.parent / "grafana-dashboards" / "docs" / "images"
 
 # Each entry: (filename_stem, grafana_path, extra_params)
 DASHBOARDS = [
@@ -201,7 +201,7 @@ def main():
         browser.close()
 
     print(f"\n✅ Done. Screenshots saved to {OUTPUT_DIR}")
-    print("   Uncomment the <!-- screenshot --> lines in each .md file to activate them.")
+    print("   Commit grafana-dashboards/ to include the updated screenshots.")
 
 
 if __name__ == "__main__":
