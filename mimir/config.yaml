@@ -31,6 +31,12 @@ ruler_storage:
   filesystem:
     dir: /tmp/mimir/rules
 
+limits:
+  # Storage degli exemplar (default 0 = disabilitato). Senza questo Mimir scarta
+  # gli exemplar che Tempo invia (metrics_generator: send_exemplars: true),
+  # impedendo il salto metrica→traccia dai pannelli (es. span-metrics → trace).
+  max_global_exemplars_per_user: 100000
+
 server:
   http_listen_port: 9009
   log_level: warn
