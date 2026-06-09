@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "==> Pre-push checks..."
+echo ""
+
+PASS=true
+
+# ── shellcheck ────────────────────────────────────────────────────────────────
+if command -v shellcheck > /dev/null 2>&1; then
+  printf '  %-35s' "shellcheck scripts/*.sh"
+  if shellcheck scripts/*.sh 2>/tmp/shellcheck-out; then
+    echo "OK"
+  else
+    echo "FAIL"
+    cat /tmp/shellcheck-out
+    PASS=false
+  fi
+  rm -f /tmp/shellcheck-out
+else
+  printf '  %-35s%s\n' "shellcheck scripts/*.sh" "SKIP (installa con: apt install shellcheck)"
+fi
+
+# ── docker compose config ─────────────────────────────────────────────────────
+printf '  %-35s' "docker compose config"
+ENV_FILE=".env"
+[ -f "$ENV_FILE" ] || ENV_FILE=".env.example"
+if docker compose --env-file "$ENV_FILE" config --quiet 2>/tmp/compose-out; then
+  echo "OK"
+else
+  echo "FAIL"
+  cat /tmp/compose-out
+  PASS=false
+fi
+rm -f /tmp/compose-out
+
+# ── risultato ─────────────────────────────────────────────────────────────────
+echo ""
+if [ "$PASS" = true ]; then
+  echo "  Tutti i check passati."
+else
+  echo "  Uno o più check falliti. Push bloccato."
+  echo "  Per skippare (sconsigliato): git push --no-verify"
+  exit 1
+fi

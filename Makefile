@@ -11,8 +11,9 @@ help:
 	@echo ""
 	@echo "Setup"
 	@echo "  make deps              Install Docker + Docker Compose (Debian/Ubuntu)"
-	@echo "  make setup             First-time setup: submodules + .env"
+	@echo "  make setup             First-time setup: submodules + .env + git hooks"
 	@echo "  make configure         Interactive guided configuration (writes .env)"
+	@echo "  make hooks             Install git hooks (pre-push checks)"
 	@echo ""
 	@echo "Lifecycle"
 	@echo "  make up                Start all services (detached)"
@@ -68,6 +69,13 @@ setup:
 	@echo "==> Copying .env.example → .env..."
 	@if [ ! -f .env ]; then cp .env.example .env && echo "  Created .env — run 'make configure' to customise."; \
 	else echo "  .env already exists, skipping."; fi
+	@$(MAKE) --no-print-directory hooks
+
+.PHONY: hooks
+hooks:
+	@echo "==> Installing git hooks..."
+	@git config core.hooksPath .githooks
+	@echo "  pre-push hook attivo (.githooks/pre-push)"
 
 .PHONY: configure
 configure:
