@@ -1,0 +1,59 @@
+apiVersion: 1
+
+# Dead man's switch: questo alert deve essere SEMPRE in stato Firing.
+# Se smette di scattare significa che il sistema di alerting stesso è down.
+# Configurare Alertmanager per inviare heartbeat a un servizio esterno
+# (es. healthchecks.io, DeadMansSnitch) che notifica quando i ping si interrompono.
+
+groups:
+  - orgId: 1
+    name: Watchdog
+    folder: Infrastructure
+    interval: 1m
+    rules:
+      - uid: watchdog-heartbeat
+        title: Watchdog
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: __expr__
+            model:
+              expression: "1"
+              type: math
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              expression: A
+              reducer: last
+              type: reduce
+              refId: B
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [B]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              expression: B
+              type: threshold
+              refId: C
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 0s
+        annotations:
+          summary: "Watchdog: il sistema di monitoring è operativo"
+          description: >
+            Questo alert è sempre in stato Firing per design.
+            Se si spegne, significa che Grafana o l'alerting pipeline non funzionano.
+        labels:
+          severity: none
+        isPaused: false

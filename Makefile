@@ -112,7 +112,9 @@ check:
 		"Tempo|http://localhost:3200/ready" \
 		"Mimir|http://localhost:9009/ready" \
 		"OTel Collector|http://localhost:13133/" \
-		"Grafana|http://localhost:3000/api/health"; do \
+		"Grafana|http://localhost:3000/api/health" \
+		"Node Exporter|http://localhost:9100/metrics" \
+		"Alertmanager|http://localhost:9093/-/healthy"; do \
 		label=$$(echo "$$row" | cut -d'|' -f1); \
 		url=$$(echo "$$row" | cut -d'|' -f2); \
 		if curl -sf --max-time 3 "$$url" > /dev/null 2>&1; then \

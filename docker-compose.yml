@@ -75,6 +75,9 @@ services:
       - ./grafana-dashboards/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
       - ./grafana-dashboards/provisioning/alerting:/etc/grafana/provisioning/alerting:ro
       - ./grafana-dashboards/dashboards:/var/lib/grafana/dashboards:ro
+      # File aggiuntivi montati singolarmente per non sovrascrivere le directory del submodule
+      - ./grafana/provisioning/datasources/alertmanager.yaml:/etc/grafana/provisioning/datasources/alertmanager.yaml:ro
+      - ./grafana/provisioning/alerting/watchdog.yaml:/etc/grafana/provisioning/alerting/watchdog.yaml:ro
     ports:
       - "3000:3000"
     networks:
@@ -177,3 +180,56 @@ services:
         limits:
           cpus: '1.0'
           memory: 512m
+
+  # ─── Node Exporter ──────────────────────────────────────────────────────────
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: node-exporter
+    restart: unless-stopped
+    command:
+      - '--path.rootfs=/host'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host:ro,rslave
+    networks:
+      - observability
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9100/metrics"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 64m
+
+  # ─── Alertmanager ───────────────────────────────────────────────────────────
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: alertmanager
+    restart: unless-stopped
+    command: ["--config.file=/etc/alertmanager/config.yml"]
+    volumes:
+      - ./alertmanager/config.yml:/etc/alertmanager/config.yml:ro
+    ports:
+      - "9093:9093"
+    networks:
+      - observability
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128m

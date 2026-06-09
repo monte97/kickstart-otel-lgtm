@@ -26,6 +26,15 @@ receivers:
           static_configs:
             - targets: ["localhost:8888"]
 
+  # Metriche host (CPU, memoria, disco, rete) via Node Exporter
+  prometheus/node:
+    config:
+      scrape_configs:
+        - job_name: node-exporter
+          scrape_interval: 15s
+          static_configs:
+            - targets: ["node-exporter:9100"]
+
 processors:
   memory_limiter:
     check_interval: 1s
@@ -41,6 +50,15 @@ processors:
     detectors: [env, system]
     timeout: 5s
     override: false
+
+  # Promuove trace_id e span_id a attributi stringa sui log record,
+  # così Loki li indicizza e Grafana può correlare log → trace con un click.
+  transform/logs_trace_context:
+    log_statements:
+      - context: log
+        statements:
+          - set(attributes["trace_id"], Hex(trace_id)) where Hex(trace_id) != "00000000000000000000000000000000"
+          - set(attributes["span_id"], Hex(span_id)) where Hex(span_id) != "0000000000000000"
 
   # Tail sampling: decisione presa dopo aver raccolto tutti gli span della trace.
   # Policy valutate con OR: basta che una dica SAMPLED per mantenere la trace.
@@ -145,10 +163,10 @@ service:
 
     logs:
       receivers: [otlp]
-      processors: [memory_limiter, resourcedetection, batch]
+      processors: [memory_limiter, resourcedetection, transform/logs_trace_context, batch]
       exporters: [otlp_http/loki]
 
     metrics/infra:
-      receivers: [docker_stats, prometheus/self]
+      receivers: [docker_stats, prometheus/self, prometheus/node]
       processors: [memory_limiter, batch]
       exporters: [prometheusremotewrite/mimir]
