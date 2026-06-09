@@ -6,6 +6,9 @@ networks:
 
 volumes:
   grafana-data:
+  loki-data:
+  tempo-data:
+  mimir-data:
 
 services:
   # ─── OpenTelemetry Collector ────────────────────────────────────────────────
@@ -26,9 +29,23 @@ services:
     networks:
       - observability
     depends_on:
-      - loki
-      - tempo
-      - mimir
+      loki:
+        condition: service_healthy
+      tempo:
+        condition: service_healthy
+      mimir:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:13133/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 600m
 
   # ─── Grafana ────────────────────────────────────────────────────────────────
   grafana:
@@ -56,9 +73,23 @@ services:
     networks:
       - observability
     depends_on:
-      - loki
-      - tempo
-      - mimir
+      loki:
+        condition: service_healthy
+      tempo:
+        condition: service_healthy
+      mimir:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256m
 
   # ─── Loki ───────────────────────────────────────────────────────────────────
   loki:
@@ -68,10 +99,22 @@ services:
     command: ["-config.file=/etc/loki/config.yaml"]
     volumes:
       - ./loki/config.yaml:/etc/loki/config.yaml:ro
+      - loki-data:/loki
     ports:
       - "3100:3100"
     networks:
       - observability
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512m
 
   # ─── Tempo ──────────────────────────────────────────────────────────────────
   tempo:
@@ -81,11 +124,23 @@ services:
     command: ["-config.file=/etc/tempo/config.yaml"]
     volumes:
       - ./tempo/config.yaml:/etc/tempo/config.yaml:ro
+      - tempo-data:/tempo
     ports:
       - "3200:3200"   # Tempo query API (Grafana usa questa)
       # 4317 OTLP gRPC ingest è interno alla rete, non esposto all'host
     networks:
       - observability
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3200/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512m
 
   # ─── Mimir ──────────────────────────────────────────────────────────────────
   mimir:
@@ -95,7 +150,19 @@ services:
     command: ["--config.file=/etc/mimir/config.yaml"]
     volumes:
       - ./mimir/config.yaml:/etc/mimir/config.yaml:ro
+      - mimir-data:/mimir
     ports:
       - "9009:9009"
     networks:
       - observability
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9009/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512m

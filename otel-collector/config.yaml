@@ -42,18 +42,56 @@ processors:
     timeout: 5s
     override: false
 
+  # Tail sampling: decisione presa dopo aver raccolto tutti gli span della trace.
+  # Policy valutate con OR: basta che una dica SAMPLED per mantenere la trace.
+  #   1. keep-errors   → 100% delle trace con almeno uno span in errore
+  #   2. keep-slow     → 100% delle trace con latenza > TRACE_LATENCY_THRESHOLD_MS
+  #   3. sample-rest   → campionamento probabilistico sulle rimanenti (TRACE_SAMPLING_RATE %)
+  tail_sampling:
+    decision_wait: ${TRACE_DECISION_WAIT:-10s}
+    num_traces: 50000
+    policies:
+      - name: keep-errors
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      - name: keep-slow
+        type: latency
+        latency:
+          threshold_ms: ${TRACE_LATENCY_THRESHOLD_MS:-2000}
+      - name: sample-rest
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: ${TRACE_SAMPLING_RATE:-20}
+
 exporters:
   # Log → Loki (richiede Loki 3.x per endpoint /otlp)
   otlp_http/loki:
     endpoint: http://loki:3100/otlp
     tls:
       insecure: true
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_elapsed_time: 300s
+    sending_queue:
+      enabled: true
+      num_consumers: 4
+      queue_size: 1000
 
   # Trace → Tempo
   otlp_grpc/tempo:
     endpoint: tempo:4317
     tls:
       insecure: true
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_elapsed_time: 300s
+    sending_queue:
+      enabled: true
+      num_consumers: 4
+      queue_size: 1000
 
   # Metriche → Mimir via remote write
   prometheusremotewrite/mimir:
@@ -62,6 +100,14 @@ exporters:
       insecure: true
     resource_to_telemetry_conversion:
       enabled: true  # converte resource attributes (container.name, ecc.) in label Prometheus
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_elapsed_time: 300s
+    sending_queue:
+      enabled: true
+      num_consumers: 4
+      queue_size: 1000
 
   # Debug: stampa telemetria nei log del collector (disabilitare in prod)
   debug:
@@ -89,7 +135,7 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, resourcedetection, batch]
+      processors: [memory_limiter, tail_sampling, resourcedetection, batch]
       exporters: [otlp_grpc/tempo, debug]
 
     metrics:

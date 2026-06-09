@@ -6,12 +6,13 @@ multitenancy_enabled: false
 blocks_storage:
   backend: filesystem
   filesystem:
-    dir: /tmp/mimir/data/tsdb
+    dir: /mimir/data/tsdb
   bucket_store:
-    sync_dir: /tmp/mimir/tsdb-sync
+    sync_dir: /mimir/tsdb-sync
 
 compactor:
-  data_dir: /tmp/mimir/compactor
+  data_dir: /mimir/compactor
+  blocks_retention_period: ${MIMIR_BLOCKS_RETENTION:-2160h}
 
 distributor:
   ring:
@@ -29,7 +30,7 @@ ingester:
 ruler_storage:
   backend: filesystem
   filesystem:
-    dir: /tmp/mimir/rules
+    dir: /mimir/rules
 
 limits:
   # Storage degli exemplar (default 0 = disabilitato). Senza questo Mimir scarta
