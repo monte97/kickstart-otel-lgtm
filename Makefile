@@ -14,6 +14,7 @@ help:
 	@echo "  make setup             First-time setup: submodules + .env + git hooks"
 	@echo "  make configure         Interactive guided configuration (writes .env)"
 	@echo "  make hooks             Install git hooks (pre-push checks)"
+	@echo "  make lint              Run pre-push checks locally (no push needed)"
 	@echo ""
 	@echo "Lifecycle"
 	@echo "  make up                Start all services (detached)"
@@ -70,6 +71,10 @@ setup:
 	@if [ ! -f .env ]; then cp .env.example .env && echo "  Created .env — run 'make configure' to customise."; \
 	else echo "  .env already exists, skipping."; fi
 	@$(MAKE) --no-print-directory hooks
+
+.PHONY: lint
+lint:
+	@bash .githooks/pre-push
 
 .PHONY: hooks
 hooks:
