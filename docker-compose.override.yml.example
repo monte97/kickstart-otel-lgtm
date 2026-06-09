@@ -1,0 +1,31 @@
+# docker-compose.override.yml — aggiungi qui i tuoi servizi locali.
+#
+# Questo file è in .gitignore e non viene mai committato.
+# Copialo e rinominalo in docker-compose.override.yml:
+#
+#   cp docker-compose.override.yml.example docker-compose.override.yml
+#
+# Docker Compose lo carica automaticamente insieme al compose principale.
+# Usa questa tecnica per collegare la tua app senza modificare il repo.
+
+services:
+  my-app:
+    # build: ../my-app          # oppure usa un'immagine già pubblicata
+    image: my-org/my-app:latest
+    container_name: my-app
+    restart: unless-stopped
+    environment:
+      # Punta al collector nella stessa rete Docker
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+      - OTEL_SERVICE_NAME=my-app
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=local
+    networks:
+      - observability   # stessa rete dello stack — vede il collector per nome
+
+# La rete è già definita nel compose principale; qui la dichiariamo
+# come external per evitare conflitti di ridefinizione.
+networks:
+  observability:
+    external: true
+    name: kickstart-otel-lgtm_observability

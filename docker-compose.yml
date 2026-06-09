@@ -1,5 +1,11 @@
 name: kickstart-otel-lgtm
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 networks:
   observability:
     driver: bridge
@@ -41,6 +47,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -85,6 +92,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -110,6 +118,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -136,6 +145,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -161,6 +171,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    logging: *default-logging
     deploy:
       resources:
         limits:
