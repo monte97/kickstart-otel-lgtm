@@ -4,16 +4,30 @@ Common adjustments for adapting the stack to your environment.
 
 ---
 
+## Interactive Configuration
+
+The fastest way to change any setting is the guided wizard:
+
+```bash
+make configure
+```
+
+It covers Grafana credentials, trace sampling parameters, and data retention. Values are written to `.env` and picked up automatically on next startup.
+
+---
+
 ## Grafana Credentials
 
-Set in `.env` (copy from `.env.example`):
+Set in `.env`:
 
 ```bash
 GF_SECURITY_ADMIN_USER=admin
 GF_SECURITY_ADMIN_PASSWORD=changeme
 ```
 
-Restart Grafana to apply: `docker compose restart grafana`
+Or run `make configure` and answer the first section.
+
+Restart to apply: `make restart s=grafana`
 
 ## Disable Anonymous Access
 
@@ -24,80 +38,47 @@ By default, unauthenticated users can browse Grafana as Viewers. To require logi
 - GF_AUTH_ANONYMOUS_ENABLED=false
 ```
 
+---
+
 ## Tail-based Trace Sampling
 
-By default the collector forwards every trace. For high-volume environments you typically want to keep **all** traces that contain errors or are slow, and sample down the healthy ones.
+The collector keeps 100% of error traces and slow traces, and samples a configurable percentage of healthy ones.
 
-Add the `tail_sampling` processor in `otel-collector/config.yaml`:
+Configure via `.env`:
 
-```yaml
-processors:
-  tail_sampling:
-    decision_wait: 10s   # how long to buffer spans before deciding
-    policies:
-      # always keep traces with errors
-      - name: keep-errors
-        type: status_code
-        status_code: { status_codes: [ERROR] }
-      # always keep slow traces (> 1s)
-      - name: keep-slow
-        type: latency
-        latency: { threshold_ms: 1000 }
-      # sample 10% of everything else
-      - name: sample-healthy
-        type: probabilistic
-        probabilistic: { sampling_percentage: 10 }
+```bash
+TRACE_SAMPLING_RATE=20          # % of healthy traces to keep (0–100)
+TRACE_LATENCY_THRESHOLD_MS=2000 # traces slower than this are always kept
+TRACE_DECISION_WAIT=10s         # buffer window to collect all spans before deciding
 ```
 
-Then add `tail_sampling` to the `traces` pipeline:
+Or run `make configure` and answer section [2/3].
 
-```yaml
-pipelines:
-  traces:
-    receivers: [otlp]
-    processors: [memory_limiter, tail_sampling, resourcedetection, batch]
-    exporters: [otlp_grpc/tempo, debug]
-```
+The tail sampler buffers spans in memory during `TRACE_DECISION_WAIT`. If you handle very high trace volume, increase `memory_limiter.limit_mib` in `otel-collector/config.yaml` accordingly.
 
-> **Note:** `tail_sampling` buffers spans in memory for `decision_wait` seconds before deciding. Increase `memory_limiter.limit_mib` if you handle high trace volume.
+---
 
 ## Data Retention
 
-Each backend has independent retention. Data is stored on the container's local filesystem and deleted on `docker compose down` unless you mount a named volume.
+Each backend has independent configurable retention. Configure via `.env`:
 
-### Logs (Loki)
-
-Edit `loki/config.yaml`:
-
-```yaml
-limits_config:
-  retention_period: 744h  # 31 days — change to e.g. 168h (7d) or 2160h (90d)
+```bash
+LOKI_RETENTION_PERIOD=744h    # logs:    31 days  (h / d / w)
+TEMPO_BLOCK_RETENTION=168h    # traces:   7 days
+MIMIR_BLOCKS_RETENTION=2160h  # metrics: 90 days
 ```
 
-Restart: `docker compose restart loki`
+Or run `make configure` and answer section [3/3].
 
-### Traces (Tempo)
+Restart the relevant backend to apply:
 
-Edit `tempo/config.yaml`:
-
-```yaml
-compactor:
-  compaction:
-    block_retention: 24h  # default — increase to e.g. 168h (7d)
+```bash
+make restart s=loki
+make restart s=tempo
+make restart s=mimir
 ```
 
-Restart: `docker compose restart tempo`
-
-### Metrics (Mimir)
-
-Add a retention period under `limits` in `mimir/config.yaml`:
-
-```yaml
-limits:
-  compactor_blocks_retention_period: 30d  # e.g. 30d, 90d, 1y
-```
-
-Restart: `docker compose restart mimir`
+---
 
 ## Collector Memory Limit
 
@@ -111,12 +92,16 @@ processors:
     spike_limit_mib: 256
 ```
 
+The Docker-level limit in `docker-compose.yml` (`deploy.resources.limits.memory`) should be set slightly higher (e.g., `1200m`) to account for Go runtime overhead.
+
 ## Disable the Debug Exporter
 
 The `debug` exporter prints sample telemetry to the collector logs. Remove it in non-development environments:
 
-1. Delete the `debug` block under `exporters`
+1. Delete the `debug` block under `exporters` in `otel-collector/config.yaml`
 2. Remove `debug` from the `traces` pipeline exporters
+
+---
 
 ## Expose Only What You Need
 
@@ -131,17 +116,25 @@ ports:
   - "8080:3000"
 ```
 
-## Use a Custom Grafana Dashboard
+---
 
-Place your dashboard JSON in `grafana/dashboards/`. It will be provisioned automatically on next startup.
+## Add a Custom Dashboard
 
-To disable the default dashboards, remove the files from `grafana/dashboards/` and the `grafana-dashboards` volume mount from `docker-compose.yml`.
+Place your dashboard JSON in the `grafana-dashboards` submodule, or mount an additional directory:
+
+```yaml
+# docker-compose.yml — grafana volumes
+- ./my-dashboards:/var/lib/grafana/dashboards/custom:ro
+```
+
+---
 
 ## Add a Signal Pipeline
 
-To add a new pipeline (e.g., a second metrics pipeline with different processors), add a named pipeline in `otel-collector/config.yaml`:
+To add a new pipeline (e.g., a second metrics pipeline with different processors):
 
 ```yaml
+# otel-collector/config.yaml
 service:
   pipelines:
     metrics/custom:
@@ -154,6 +147,8 @@ service:
 
 If your app does not emit logs, remove the `logs` pipeline from `otel-collector/config.yaml` and the corresponding exporter. Less noise, less resource usage.
 
+---
+
 ## Reverse Proxy (Grafana)
 
 Set the root URL so redirects and cookie paths work correctly:
@@ -164,9 +159,11 @@ Set the root URL so redirects and cookie paths work correctly:
 - GF_SERVER_SERVE_FROM_SUB_PATH=true  # only if hosted at a sub-path
 ```
 
+---
+
 ## Drop Noisy Spans
 
-Health checks, readiness probes, and similar endpoints generate spans that add no value. Filter them out in `otel-collector/config.yaml` using the `filter` processor:
+Health checks and readiness probes generate spans with no value. Filter them in `otel-collector/config.yaml`:
 
 ```yaml
 processors:
@@ -174,55 +171,47 @@ processors:
     error_mode: ignore
     traces:
       span:
-        # drop spans where the URL path is a health/readiness endpoint
         - attributes["url.path"] == "/health"
         - attributes["url.path"] == "/ready"
         - attributes["url.path"] == "/metrics"
         - attributes["http.target"] == "/health"
 ```
 
-Add it to the `traces` pipeline (before `batch`):
+Add `filter/drop-health-checks` to the `traces` pipeline before `batch`.
 
-```yaml
-pipelines:
-  traces:
-    receivers: [otlp]
-    processors: [memory_limiter, filter/drop-health-checks, resourcedetection, batch]
-    exporters: [otlp_grpc/tempo, debug]
+---
+
+## Add Your Own App (docker-compose override)
+
+Use `docker-compose.override.yml` to connect your app without modifying this repo:
+
+```bash
+cp docker-compose.override.yml.example docker-compose.override.yml
+# edit to reference your service image and env vars
+docker compose up -d
 ```
 
-Adjust the attribute names to match your instrumentation library (`url.path` for OTel semantic conventions, `http.target` for older SDKs).
+Docker Compose loads the override automatically alongside the main file.
 
-## Rate Limiting per Service
+---
 
-Prevent a single noisy service from saturating the collector and starving everything else. Use the `ratelimit` extension or, more commonly, the `memory_limiter` in combination with a per-service `routing` processor.
+## Configure Alertmanager Notification Channels
 
-A simpler approach for most setups: cap ingestion with `memory_limiter` (already configured) and rely on `batch` to smooth bursts. If you need hard per-service limits, add a named pipeline per service with its own `memory_limiter` threshold:
+Edit `alertmanager/config.yml` to add Slack, email, PagerDuty, or webhook receivers. See [ALERTING.md](ALERTING.md) for examples and the dead man's switch setup.
 
-```yaml
-processors:
-  memory_limiter/noisy-service:
-    check_interval: 1s
-    limit_mib: 128       # cap this service's pipeline at 128 MiB
-    spike_limit_mib: 32
+Apply without restart:
 
-service:
-  pipelines:
-    traces/noisy-service:
-      receivers: [otlp]
-      processors: [memory_limiter/noisy-service, batch]
-      exporters: [otlp_grpc/tempo]
+```bash
+curl -X POST http://localhost:9093/-/reload
 ```
 
-Route traffic to the right pipeline using the `routing` processor keyed on `service.name`.
+---
 
 ## Grafana Dashboard Variables
 
-The pre-loaded dashboards use template variables (`$service`, `$environment`) to filter data without hardcoding queries. If you build custom dashboards, follow the same pattern.
+The pre-loaded dashboards use template variables (`$service`, `$environment`) to filter data. If you build custom dashboards, follow the same pattern.
 
 In Grafana: **Dashboard settings → Variables → Add variable**
-
-Useful variables to define:
 
 | Variable | Type | Query example |
 |---|---|---|
@@ -230,18 +219,14 @@ Useful variables to define:
 | `environment` | Query | `label_values(traces_spanmetrics_calls_total, deployment_environment)` |
 | `interval` | Interval | `1m,5m,15m,1h` |
 
-Then reference them in panel queries as `$service`, `$environment`, `$__rate_interval`.
-
-> **Tip:** set `Multi-value` and `Include All option` on service/environment variables so you can select multiple services at once or see the full picture.
+---
 
 ## Update Component Versions
 
 Versions are pinned in `docker-compose.yml`. To update:
 
 ```bash
-# Edit the image tag, then:
-docker compose pull
-docker compose up -d
+make update   # pulls latest pinned images and restarts
 ```
 
-Check the collector config after updates — component names and config keys occasionally change between minor versions.
+To change a version, edit the image tag in `docker-compose.yml` first, then run `make update`. Check the collector config after updates — component names and config keys occasionally change between minor versions.

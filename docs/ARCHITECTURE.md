@@ -5,23 +5,28 @@
 ```
 Your App
   │
-  ├── Logs (OTLP)    ─────────────────────────────► Loki ◄─── Grafana (query)
-  ├── Traces (OTLP)  ──► OTel Collector ──────────► Tempo ◄── Grafana (query)
-  └── Metrics (OTLP) ──►  (4317/4318)  ──────────► Mimir ◄── Grafana (query)
+  ├── Logs (OTLP)    ──────────────────────────────► Loki ◄──── Grafana (query)
+  ├── Traces (OTLP)  ──► OTel Collector ───────────► Tempo ◄─── Grafana (query)
+  └── Metrics (OTLP) ──►  (4317/4318)  ───────────► Mimir ◄─── Grafana (query)
                                │
-                               ├── docker_stats receiver → container metrics → Mimir
-                               └── self-monitoring (port 8888) → collector metrics → Mimir
+                               ├── docker_stats ──► container metrics ──► Mimir
+                               ├── node-exporter ─► host metrics ────────► Mimir
+                               └── self-scrape ───► collector metrics ───► Mimir
+
+Grafana Alerting ────────────────────────────────► Alertmanager ──► Slack/email/…
 ```
 
 ## Components
 
 | Component | Image | Role | Ports |
 |-----------|-------|------|-------|
-| **OTel Collector** | `otel/opentelemetry-collector-contrib:0.149.0` | Receives OTLP telemetry, routes to backends | `4317` (gRPC), `4318` (HTTP) |
+| **OTel Collector** | `otel/opentelemetry-collector-contrib:0.149.0` | Receives OTLP telemetry, tail sampling, routes to backends | `4317` gRPC, `4318` HTTP |
 | **Grafana** | `grafana/grafana:12.4.2` | Visualization, dashboards, alerting | `3000` |
 | **Loki** | `grafana/loki:3.7.1` | Log storage and querying | `3100` |
-| **Tempo** | `grafana/tempo:2.10.4` | Trace storage (also generates RED metrics via span-metrics) | `3200` |
-| **Mimir** | `grafana/mimir:3.0.5` | Metrics storage (Prometheus-compatible remote write) | `9009` |
+| **Tempo** | `grafana/tempo:2.10.4` | Trace storage, span-metrics generator | `3200` |
+| **Mimir** | `grafana/mimir:3.0.5` | Metrics storage (Prometheus-compatible) | `9009` |
+| **Node Exporter** | `prom/node-exporter:v1.8.2` | Host CPU, RAM, disk, network metrics | `9100` |
+| **Alertmanager** | `prom/alertmanager:v0.27.0` | Alert routing and deduplication | `9093` |
 
 ## Why Mimir instead of Prometheus
 
@@ -41,6 +46,8 @@ Result: simpler architecture, no service discovery configuration, works the same
 | `3100` | Loki | Direct log query (optional) |
 | `3200` | Tempo | Direct trace query (optional) |
 | `9009` | Mimir | Direct metric query (optional) |
+| `9093` | Alertmanager | Alert routing UI |
+| `9100` | Node Exporter | Host metrics endpoint (internal use) |
 | `13133` | OTel Collector | Health check |
 
 ## RED Metrics: How They Work
@@ -53,10 +60,39 @@ Tempo's `metrics_generator` with `span-metrics` processor automatically generate
 
 These are written to Mimir and queried by Grafana. **No code changes needed in your app** beyond basic OTel tracing setup.
 
+## Log-Trace Correlation
+
+The OTel Collector promotes `trace_id` and `span_id` from OTLP log records to Loki attributes before ingestion. This means every log line that belongs to a trace is searchable by trace ID in Loki, and Grafana can navigate directly from a log entry to the corresponding trace in Tempo.
+
+## Tail Sampling
+
+The collector buffers spans in memory for a configurable window (`TRACE_DECISION_WAIT`) before deciding what to keep:
+
+1. **keep-errors** — 100% of traces containing at least one error span
+2. **keep-slow** — 100% of traces exceeding `TRACE_LATENCY_THRESHOLD_MS`
+3. **sample-rest** — `TRACE_SAMPLING_RATE`% of healthy, fast traces
+
+Run `make configure` to adjust these values interactively.
+
+## Storage
+
+All backends use **named Docker volumes** for persistence:
+
+| Volume | Backend | Data |
+|--------|---------|------|
+| `loki-data` | Loki | Log chunks and index |
+| `tempo-data` | Tempo | Trace blocks and WAL |
+| `mimir-data` | Mimir | Metric blocks |
+| `grafana-data` | Grafana | Dashboards, users, alert state |
+
+Data persists across `docker compose down` and `docker compose up`. Use `make backup` / `make restore` to snapshot volumes before upgrades.
+
+`make clean` (`docker compose down -v`) removes volumes — **data is lost**.
+
 ## Single-binary Mode
 
-All components (Loki, Tempo, Mimir) run in single-binary mode with local filesystem storage. This means:
-- **Data is ephemeral** — `docker compose down` deletes traces/logs/metrics
-- **Not for production** — no replication, no HA, no durable storage
+All components (Loki, Tempo, Mimir) run in single-binary mode. This means:
+- **No replication** — suitable for development and staging
+- **Not for production** — no HA, no durable object storage
 
-For production, see the [commercial support](#commercial-support) section in the main README.
+For production, see the [commercial support](../README.md#commercial-support) section.
