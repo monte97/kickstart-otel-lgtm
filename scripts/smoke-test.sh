@@ -15,9 +15,9 @@ fi
 # Calcola tempo attesa: decision_wait + 10s di buffer per batch ed export
 DW="${TRACE_DECISION_WAIT:-10s}"
 if [[ "$DW" =~ ^([0-9]+)s$ ]]; then
-  WAIT=$(( ${BASH_REMATCH[1]} + 10 ))
+  WAIT=$(( BASH_REMATCH[1] + 10 ))
 elif [[ "$DW" =~ ^([0-9]+)m$ ]]; then
-  WAIT=$(( ${BASH_REMATCH[1]} * 60 + 10 ))
+  WAIT=$(( BASH_REMATCH[1] * 60 + 10 ))
 else
   WAIT=20
 fi
@@ -80,7 +80,7 @@ fi
 echo "  [2/3] Invio span con status ERROR (sempre campionato dal tail sampler)..."
 
 TMPFILE=$(mktemp /tmp/otel-smoke-XXXXXX.txt)
-trap "rm -f $TMPFILE" EXIT
+trap 'rm -f "$TMPFILE"' EXIT
 
 HTTP_STATUS=$(curl -s -o "$TMPFILE" -w "%{http_code}" \
   -X POST "${OTLP_HTTP}/v1/traces" \
